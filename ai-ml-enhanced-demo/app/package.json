@@ -1,0 +1,35 @@
+{
+  "name": "aws-waf-ai-ml-demo",
+  "version": "2.0.0",
+  "description": "AWS WAF AI/ML Enhanced Demo Application with intelligent threat detection",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "node test-endpoints.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6",
+    "express-rate-limit": "^6.7.0",
+    "uuid": "^9.0.0",
+    "crypto": "^1.0.1",
+    "user-agents": "^1.0.1",
+    "request-ip": "^3.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
+  "keywords": [
+    "aws",
+    "waf",
+    "security",
+    "ai",
+    "ml",
+    "bot-detection",
+    "fraud-prevention",
+    "demo"
+  ],
+  "author": "AWS WAF Demo",
+  "license": "MIT"
+}

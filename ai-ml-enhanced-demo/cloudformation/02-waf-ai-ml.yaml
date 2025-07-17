@@ -1,0 +1,461 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS WAF with AI/ML Enhanced Protection - Bot Control, Fraud Detection, and Intelligent Threat Mitigation'
+
+Parameters:
+  LoadBalancerArn:
+    Type: String
+    Description: ARN of the Application Load Balancer to protect
+  
+  Environment:
+    Type: String
+    Default: demo
+    Description: Environment name for resource tagging
+    
+  BotControlEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Enable AWS WAF Bot Control with ML-powered bot detection
+
+Resources:
+  # Enhanced WAF Web ACL with AI/ML capabilities
+  WAFWebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub '${Environment}-ai-ml-waf-acl'
+      Description: 'AI/ML Enhanced WAF with Bot Control and Intelligent Threat Detection'
+      Scope: REGIONAL
+      DefaultAction:
+        Allow: {}
+      
+      Rules:
+        # Rule 1: AWS Managed Bot Control (AI/ML Powered)
+        - Name: BotControlManagedRule
+          Priority: 1
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesBotControlRuleSet
+              ManagedRuleGroupConfigs:
+                - AWSManagedRulesBotControlRuleSet:
+                    InspectionLevel: TARGETED
+                    EnableMachineLearning: !Ref BotControlEnabled
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: BotControlRule
+        
+        # Rule 2: Account Takeover Prevention (ML-based)
+        - Name: AccountTakeoverPreventionRule
+          Priority: 2
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesATPRuleSet
+              ManagedRuleGroupConfigs:
+                - AWSManagedRulesATPRuleSet:
+                    LoginPath: '/api/login-attempt'
+                    RequestInspection:
+                      PayloadType: JSON
+                      UsernameField:
+                        Identifier: '/username'
+                      PasswordField:
+                        Identifier: '/password'
+                    ResponseInspection:
+                      StatusCode:
+                        SuccessCodes: [200]
+                        FailureCodes: [401, 403]
+                      Header:
+                        Name: 'content-type'
+                        SuccessValues: ['application/json']
+                        FailureValues: ['application/json']
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AccountTakeoverPreventionRule
+        
+        # Rule 3: Fraud Control Integration (ML-based transaction analysis)
+        - Name: FraudControlRule
+          Priority: 3
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesFraudControlRuleSet
+              ManagedRuleGroupConfigs:
+                - AWSManagedRulesFraudControlRuleSet:
+                    RegistrationPagePath: '/register'
+                    CreationPath: '/api/transaction'
+                    RequestInspection:
+                      PayloadType: JSON
+                      EmailField:
+                        Identifier: '/email'
+                      PhoneNumberFields:
+                        - Identifier: '/phone'
+                      UsernameField:
+                        Identifier: '/username'
+                      PasswordField:
+                        Identifier: '/password'
+                      AddressFields:
+                        - Identifier: '/address'
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: FraudControlRule
+        
+        # Rule 4: Intelligent Rate Limiting with ML Adaptation
+        - Name: IntelligentRateLimitingRule
+          Priority: 4
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              Limit: 2000
+              AggregateKeyType: IP
+              ScopeDownStatement:
+                NotStatement:
+                  Statement:
+                    IPSetReferenceStatement:
+                      Arn: !GetAtt TrustedIPSet.Arn
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: IntelligentRateLimitingRule
+        
+        # Rule 5: Advanced SQL Injection with ML Enhancement
+        - Name: EnhancedSQLiProtectionRule
+          Priority: 5
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesSQLiRuleSet
+              ExcludedRules: []
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: EnhancedSQLiProtectionRule
+        
+        # Rule 6: Behavioral Analysis Custom Rule
+        - Name: BehavioralAnalysisRule
+          Priority: 6
+          Action:
+            Challenge: {}
+          Statement:
+            AndStatement:
+              Statements:
+                - ByteMatchStatement:
+                    SearchString: '/api/behavioral-analysis'
+                    FieldToMatch:
+                      UriPath: {}
+                    TextTransformations:
+                      - Priority: 0
+                        Type: LOWERCASE
+                    PositionalConstraint: CONTAINS
+                - NotStatement:
+                    Statement:
+                      ByteMatchStatement:
+                        SearchString: 'human-score'
+                        FieldToMatch:
+                          Body: {}
+                        TextTransformations:
+                          - Priority: 0
+                            Type: LOWERCASE
+                        PositionalConstraint: CONTAINS
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: BehavioralAnalysisRule
+        
+        # Rule 7: Geo-Intelligence with ML Risk Scoring
+        - Name: GeoIntelligenceRule
+          Priority: 7
+          Action:
+            Challenge: {}
+          Statement:
+            GeoMatchStatement:
+              CountryCodes:
+                - CN  # China
+                - RU  # Russia
+                - KP  # North Korea
+                - IR  # Iran
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: GeoIntelligenceRule
+        
+        # Rule 8: Reputation-based IP Blocking with ML
+        - Name: ReputationBasedBlockingRule
+          Priority: 8
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAmazonIpReputationList
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: ReputationBasedBlockingRule
+        
+        # Rule 9: Core Rule Set with ML Enhancements
+        - Name: CoreRuleSetWithMLRule
+          Priority: 9
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+              ExcludedRules:
+                - Name: SizeRestrictions_BODY
+                - Name: GenericRFI_BODY
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: CoreRuleSetWithMLRule
+        
+        # Rule 10: Known Bad Inputs with ML Pattern Recognition
+        - Name: KnownBadInputsMLRule
+          Priority: 10
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: KnownBadInputsMLRule
+
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub '${Environment}-ai-ml-waf-acl'
+      
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: AI-ML-WAF-Demo
+        - Key: Features
+          Value: BotControl-FraudDetection-ML
+
+  # Trusted IP Set for whitelisting
+  TrustedIPSet:
+    Type: AWS::WAFv2::IPSet
+    Properties:
+      Name: !Sub '${Environment}-trusted-ips'
+      Description: 'Trusted IP addresses for ML-based rate limiting exceptions'
+      Scope: REGIONAL
+      IPAddressVersion: IPV4
+      Addresses:
+        - '127.0.0.1/32'  # Localhost
+        - '10.0.0.0/8'    # Private networks
+        - '172.16.0.0/12' # Private networks
+        - '192.168.0.0/16' # Private networks
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Associate WAF with Load Balancer
+  WAFAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn: !Ref LoadBalancerArn
+      WebACLArn: !GetAtt WAFWebACL.Arn
+
+  # Enhanced CloudWatch Dashboard for AI/ML Metrics
+  WAFDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub '${Environment}-waf-ai-ml-dashboard'
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/WAFV2", "AllowedRequests", "WebACL", "${WAFWebACL}", "Rule", "ALL", "Region", "${AWS::Region}" ],
+                  [ ".", "BlockedRequests", ".", ".", ".", ".", ".", "." ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "WAF Request Overview",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/WAFV2", "BlockedRequests", "WebACL", "${WAFWebACL}", "Rule", "BotControlRule", "Region", "${AWS::Region}" ],
+                  [ ".", ".", ".", ".", ".", "AccountTakeoverPreventionRule", ".", "." ],
+                  [ ".", ".", ".", ".", ".", "FraudControlRule", ".", "." ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "AI/ML Rule Blocks",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/WAFV2", "BlockedRequests", "WebACL", "${WAFWebACL}", "Rule", "IntelligentRateLimitingRule", "Region", "${AWS::Region}" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Intelligent Rate Limiting",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 6,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/WAFV2", "BlockedRequests", "WebACL", "${WAFWebACL}", "Rule", "BehavioralAnalysisRule", "Region", "${AWS::Region}" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Behavioral Analysis Challenges",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 6,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/WAFV2", "BlockedRequests", "WebACL", "${WAFWebACL}", "Rule", "GeoIntelligenceRule", "Region", "${AWS::Region}" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Geo-Intelligence Blocks",
+                "period": 300
+              }
+            }
+          ]
+        }
+
+  # CloudWatch Alarms for AI/ML Security Events
+  HighBotActivityAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${Environment}-high-bot-activity'
+      AlarmDescription: 'High bot activity detected by ML models'
+      MetricName: BlockedRequests
+      Namespace: AWS/WAFV2
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 100
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: WebACL
+          Value: !Ref WAFWebACL
+        - Name: Rule
+          Value: BotControlRule
+        - Name: Region
+          Value: !Ref AWS::Region
+      TreatMissingData: notBreaching
+
+  FraudDetectionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${Environment}-fraud-detection-alert'
+      AlarmDescription: 'Fraud patterns detected by ML models'
+      MetricName: BlockedRequests
+      Namespace: AWS/WAFV2
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: WebACL
+          Value: !Ref WAFWebACL
+        - Name: Rule
+          Value: FraudControlRule
+        - Name: Region
+          Value: !Ref AWS::Region
+      TreatMissingData: notBreaching
+
+  AccountTakeoverAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${Environment}-account-takeover-alert'
+      AlarmDescription: 'Account takeover attempts detected by ML'
+      MetricName: BlockedRequests
+      Namespace: AWS/WAFV2
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: WebACL
+          Value: !Ref WAFWebACL
+        - Name: Rule
+          Value: AccountTakeoverPreventionRule
+        - Name: Region
+          Value: !Ref AWS::Region
+      TreatMissingData: notBreaching
+
+Outputs:
+  WebACLId:
+    Description: 'AI/ML Enhanced WAF Web ACL ID'
+    Value: !GetAtt WAFWebACL.Id
+    Export:
+      Name: !Sub '${Environment}-waf-ai-ml-acl-id'
+  
+  WebACLArn:
+    Description: 'AI/ML Enhanced WAF Web ACL ARN'
+    Value: !GetAtt WAFWebACL.Arn
+    Export:
+      Name: !Sub '${Environment}-waf-ai-ml-acl-arn'
+  
+  DashboardURL:
+    Description: 'CloudWatch Dashboard URL for AI/ML WAF Metrics'
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${Environment}-waf-ai-ml-dashboard'
+  
+  BotControlEnabled:
+    Description: 'Bot Control ML Feature Status'
+    Value: !Ref BotControlEnabled
+  
+  MLFeatures:
+    Description: 'Enabled AI/ML Features'
+    Value: 'Bot Control, Account Takeover Prevention, Fraud Control, Behavioral Analysis, Geo-Intelligence'

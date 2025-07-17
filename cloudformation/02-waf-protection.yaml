@@ -1,0 +1,354 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS WAF Protection for Vulnerable Demo App - Lightning Talk Demo'
+
+Parameters:
+  LoadBalancerArn:
+    Type: String
+    Description: ARN of the Application Load Balancer to protect
+    Default: !ImportValue vulnerable-app-stack-ALB-ARN
+
+  RateLimitPerMinute:
+    Type: Number
+    Description: Maximum requests per minute per IP
+    Default: 100
+    MinValue: 10
+    MaxValue: 10000
+
+  EnableGeoBlocking:
+    Type: String
+    Description: Enable geographic blocking for specific countries
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+
+  BlockedCountries:
+    Type: CommaDelimitedList
+    Description: List of country codes to block (e.g., CN,RU,KP)
+    Default: "CN,RU"
+
+Resources:
+  # CloudWatch Log Group for WAF
+  WAFLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/wafv2/${AWS::StackName}"
+      RetentionInDays: 7
+
+  # WAF Web ACL
+  WebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub "${AWS::StackName}-WebACL"
+      Description: "WAF protection for vulnerable demo app"
+      Scope: REGIONAL
+      DefaultAction:
+        Allow: {}
+      
+      Rules:
+        # Rule 1: AWS Managed Rules - Core Rule Set (OWASP Top 10)
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 1
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+              # Exclude rules that might be too aggressive for demo
+              ExcludedRules:
+                - Name: SizeRestrictions_BODY
+                - Name: GenericRFI_BODY
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: CommonRuleSetMetric
+
+        # Rule 2: AWS Managed Rules - Known Bad Inputs
+        - Name: AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 2
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: KnownBadInputsMetric
+
+        # Rule 3: AWS Managed Rules - SQL Injection
+        - Name: AWSManagedRulesSQLiRuleSet
+          Priority: 3
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesSQLiRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: SQLiRuleSetMetric
+
+        # Rule 4: Rate Limiting
+        - Name: RateLimitRule
+          Priority: 4
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              Limit: !Ref RateLimitPerMinute
+              AggregateKeyType: IP
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: RateLimitMetric
+
+        # Rule 5: Geographic Blocking (conditional)
+        - !If
+          - EnableGeoBlockingCondition
+          - Name: GeoBlockingRule
+            Priority: 5
+            Action:
+              Block: {}
+            Statement:
+              GeoMatchStatement:
+                CountryCodes: !Ref BlockedCountries
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: GeoBlockingMetric
+          - !Ref AWS::NoValue
+
+        # Rule 6: Custom SQL Injection Detection
+        - Name: CustomSQLInjectionRule
+          Priority: 6
+          Action:
+            Block: {}
+          Statement:
+            OrStatement:
+              Statements:
+                - ByteMatchStatement:
+                    SearchString: "DROP TABLE"
+                    FieldToMatch:
+                      UriPath: {}
+                    TextTransformations:
+                      - Priority: 0
+                        Type: URL_DECODE
+                      - Priority: 1
+                        Type: LOWERCASE
+                    PositionalConstraint: CONTAINS
+                - ByteMatchStatement:
+                    SearchString: "DROP TABLE"
+                    FieldToMatch:
+                      QueryString: {}
+                    TextTransformations:
+                      - Priority: 0
+                        Type: URL_DECODE
+                      - Priority: 1
+                        Type: LOWERCASE
+                    PositionalConstraint: CONTAINS
+                - ByteMatchStatement:
+                    SearchString: "'; DROP"
+                    FieldToMatch:
+                      QueryString: {}
+                    TextTransformations:
+                      - Priority: 0
+                        Type: URL_DECODE
+                    PositionalConstraint: CONTAINS
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: CustomSQLInjectionMetric
+
+        # Rule 7: XSS Protection
+        - Name: CustomXSSRule
+          Priority: 7
+          Action:
+            Block: {}
+          Statement:
+            OrStatement:
+              Statements:
+                - ByteMatchStatement:
+                    SearchString: "<script>"
+                    FieldToMatch:
+                      QueryString: {}
+                    TextTransformations:
+                      - Priority: 0
+                        Type: URL_DECODE
+                      - Priority: 1
+                        Type: LOWERCASE
+                    PositionalConstraint: CONTAINS
+                - ByteMatchStatement:
+                    SearchString: "javascript:"
+                    FieldToMatch:
+                      QueryString: {}
+                    TextTransformations:
+                      - Priority: 0
+                        Type: URL_DECODE
+                      - Priority: 1
+                        Type: LOWERCASE
+                    PositionalConstraint: CONTAINS
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: CustomXSSMetric
+
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub "${AWS::StackName}-WebACL"
+
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-WebACL"
+        - Key: Purpose
+          Value: "Lightning Talk Demo"
+
+  # Associate WAF with ALB
+  WebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn: !Ref LoadBalancerArn
+      WebACLArn: !GetAtt WebACL.Arn
+
+  # WAF Logging Configuration
+  WAFLoggingConfig:
+    Type: AWS::WAFv2::LoggingConfiguration
+    Properties:
+      ResourceArn: !GetAtt WebACL.Arn
+      LogDestinationConfigs:
+        - !GetAtt WAFLogGroup.Arn
+      LoggingFilter:
+        DefaultBehavior: KEEP
+        Filters:
+          - Behavior: KEEP
+            Conditions:
+              - ActionCondition:
+                  Action: BLOCK
+            Requirement: MEETS_ANY
+
+  # CloudWatch Alarms
+  SQLInjectionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-SQLInjection-Attacks"
+      AlarmDescription: "Alert when SQL injection attacks are detected"
+      MetricName: CustomSQLInjectionMetric
+      Namespace: AWS/WAFV2
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: WebACL
+          Value: !Sub "${AWS::StackName}-WebACL"
+        - Name: Rule
+          Value: CustomSQLInjectionRule
+        - Name: Region
+          Value: !Ref AWS::Region
+
+  RateLimitAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-RateLimit-Exceeded"
+      AlarmDescription: "Alert when rate limiting is triggered"
+      MetricName: RateLimitMetric
+      Namespace: AWS/WAFV2
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: WebACL
+          Value: !Sub "${AWS::StackName}-WebACL"
+        - Name: Rule
+          Value: RateLimitRule
+        - Name: Region
+          Value: !Ref AWS::Region
+
+  # CloudWatch Dashboard
+  WAFDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${AWS::StackName}-WAF-Dashboard"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/WAFV2", "AllowedRequests", "WebACL", "${AWS::StackName}-WebACL", "Region", "${AWS::Region}" ],
+                  [ ".", "BlockedRequests", ".", ".", ".", "." ]
+                ],
+                "period": 300,
+                "stat": "Sum",
+                "region": "${AWS::Region}",
+                "title": "WAF Requests Overview"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/WAFV2", "BlockedRequests", "WebACL", "${AWS::StackName}-WebACL", "Rule", "CustomSQLInjectionRule", "Region", "${AWS::Region}" ],
+                  [ "...", "RateLimitRule", ".", "." ],
+                  [ "...", "CustomXSSRule", ".", "." ]
+                ],
+                "period": 300,
+                "stat": "Sum",
+                "region": "${AWS::Region}",
+                "title": "Blocked Requests by Rule"
+              }
+            }
+          ]
+        }
+
+Conditions:
+  EnableGeoBlockingCondition: !Equals [!Ref EnableGeoBlocking, 'true']
+
+Outputs:
+  WebACLId:
+    Description: ID of the WAF Web ACL
+    Value: !GetAtt WebACL.Id
+    Export:
+      Name: !Sub "${AWS::StackName}-WebACL-ID"
+
+  WebACLArn:
+    Description: ARN of the WAF Web ACL
+    Value: !GetAtt WebACL.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-WebACL-ARN"
+
+  DashboardURL:
+    Description: CloudWatch Dashboard URL
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${AWS::StackName}-WAF-Dashboard"
+
+  WAFConsoleURL:
+    Description: WAF Console URL
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/wafv2/homev2/web-acl/${WebACL.Id}/overview?region=${AWS::Region}"
+
+  TestCommands:
+    Description: Commands to test WAF protection
+    Value: |
+      # These should now be blocked by WAF:
+      
+      # SQL Injection test:
+      curl "http://your-alb-dns/search?q='; DROP TABLE users; --"
+      
+      # XSS test:
+      curl "http://your-alb-dns/search?q=<script>alert('xss')</script>"
+      
+      # Rate limiting test:
+      for i in {1..150}; do curl http://your-alb-dns/login -d "user=test&pass=$i"; done
