@@ -1,0 +1,57 @@
+🚨 SQL Injection Attack Simulation
+Target: http://waf-demo.tomogaku.ip-ddns.com
+==================================
+
+1. Testing SQL injection in search endpoint...
+Attack: ' OR '1'='1
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+
+
+2. Testing DROP TABLE attack...
+Attack: '; DROP TABLE users; --
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+
+
+3. Testing UNION SELECT attack...
+Attack: ' UNION SELECT username,password FROM users --
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+
+
+4. Testing SQL injection in user filter...
+Attack: ' OR 1=1 --
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+
+
+5. Testing time-based SQL injection...
+Attack: '; WAITFOR DELAY '00:00:05' --
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+Request took: 0 seconds
+
+==================================
+SQL Injection tests completed!
+Check the application logs and WAF dashboard for blocked requests.

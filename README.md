@@ -1,275 +1,183 @@
-# AWS WAF Lightning Talk Demo
+# AWS WAF Security Demonstration Environment
 
-> **"From Production Pain to Protection: My AWS WAF Learning Journey"**
+A comprehensive demonstration environment showcasing AWS WAF protection capabilities, featuring a deliberately vulnerable web application and attack simulation tools for security testing and validation.
 
-A complete demo environment for showcasing AWS WAF protection capabilities in a lightning talk format, featuring a vulnerable web application and comprehensive attack simulations.
+## Overview
 
-## 🎯 Talk Overview
+This repository provides a complete environment for demonstrating:
+- Common web application vulnerabilities and attack vectors
+- AWS WAF protection implementation and configuration
+- Real-time attack mitigation and monitoring
+- Security posture comparison with and without WAF protection
 
-This repository contains everything needed for a compelling AWS Summit lightning talk that demonstrates:
-- Real-world web application vulnerabilities
-- Live attack simulations
-- AWS WAF protection implementation
-- Before/after security comparison
+**Target Audience:** Security teams, DevOps engineers, and cloud architects implementing AWS WAF.
 
-**Perfect for:** Developers, DevOps engineers, and security-conscious teams who want to understand practical WAF implementation.
-
-## 📁 Project Structure
+## Project Structure
 
 ```
-aws-summit-lightning-talk/
-├── README.md                          # This file
-├── lightning-talk-demo-plan.md        # Detailed talk structure and flow
-├── app/                              # Vulnerable demo application
-│   ├── app.js                        # Node.js vulnerable web app
+.
+├── README.md                          # Project documentation
+├── app/                              # Demo web application
+│   ├── app.js                        # Node.js application
 │   ├── package.json                  # Dependencies
 │   └── Dockerfile                    # Container configuration
 ├── cloudformation/                   # Infrastructure as Code
-│   ├── 01-vulnerable-app.yaml        # ALB + EC2 infrastructure
-│   └── 02-waf-protection.yaml        # WAF rules and monitoring
-├── attacks/                          # Attack simulation scripts
-│   ├── sql-injection-test.sh         # SQL injection attacks
-│   ├── brute-force-test.sh          # Login brute force
-│   ├── xss-test.sh                  # Cross-site scripting
+│   ├── 01-vulnerable-app.yaml        # Base infrastructure
+│   └── 02-waf-protection.yaml        # WAF configuration
+├── attacks/                          # Security testing scripts
+│   ├── sql-injection-test.sh         # SQL injection vectors
+│   ├── brute-force-test.sh          # Authentication attacks
+│   ├── xss-test.sh                  # XSS attack simulation
 │   └── run-all-attacks.sh           # Comprehensive testing
 └── scripts/                         # Deployment automation
-    ├── deploy-demo.sh               # One-click deployment
+    ├── deploy-demo.sh               # Deployment script
     └── cleanup-demo.sh              # Resource cleanup
 ```
 
-## 🚀 Quick Start
+## Prerequisites
 
-### Prerequisites
-- AWS CLI configured with appropriate permissions
-- EC2 Key Pair in your target region
-- Basic understanding of CloudFormation
+- AWS CLI with configured credentials
+- EC2 Key Pair in target region
+- Appropriate IAM permissions for CloudFormation, WAF, and related services
 
-### 1. Deploy the Demo Environment
+## Deployment Instructions
+
+### 1. Infrastructure Deployment
 ```bash
 cd scripts/
 ./deploy-demo.sh us-east-1 my-key-pair
 ```
 
-### 2. Test Vulnerabilities (Before WAF)
+### 2. Security Testing (Pre-WAF)
 ```bash
 cd attacks/
 ./run-all-attacks.sh http://your-alb-dns-name
 ```
 
-### 3. Deploy WAF Protection
+### 3. WAF Implementation
 ```bash
-# If not deployed during initial setup
 aws cloudformation deploy \
   --template-file cloudformation/02-waf-protection.yaml \
-  --stack-name waf-lightning-demo-waf \
-  --parameter-overrides LoadBalancerArn=your-alb-arn
+  --stack-name waf-demo-protection \
+  --region $REGION
 ```
 
-### 4. Test Again (After WAF)
+### 4. Security Validation (Post-WAF)
 ```bash
 ./run-all-attacks.sh http://your-alb-dns-name
-# Watch attacks get blocked! 🛡️
 ```
 
-## 🎭 The Vulnerable Demo App
+## Application Security Features
 
-The demo application intentionally includes common vulnerabilities:
+The demonstration application includes deliberately implemented vulnerabilities for security testing:
 
 ### Vulnerable Endpoints
-- **`/search`** - SQL injection in product search
-- **`/login`** - Brute force target (no rate limiting)
-- **`/api/users`** - SQL injection in user filtering
-- **`/comment`** - Stored XSS vulnerability
-- **`/api/user-profile`** - UNION-based SQL injection
+- `/search` - SQL injection vulnerability
+- `/login` - Authentication endpoint
+- `/api/users` - SQL injection in user filtering
+- `/comment` - Stored XSS vulnerability
+- `/api/user-profile` - UNION-based SQL injection
 
-### Example Attacks
+### Attack Vectors
 ```bash
-# SQL Injection
+# SQL Injection Example
 curl "http://demo-app/search?q='; DROP TABLE users; --"
 
-# XSS
+# XSS Vector
 curl "http://demo-app/search?q=<script>alert('XSS')</script>"
 
-# Brute Force
-for i in {1..100}; do 
+# Authentication Attack
+for i in {1..100}; do
   curl -X POST http://demo-app/login -d "user=admin&pass=$i"
 done
 ```
 
-## 🛡️ WAF Protection Features
+## WAF Protection Implementation
 
 ### Managed Rule Groups
-- **AWSManagedRulesCommonRuleSet** - OWASP Top 10 protection
-- **AWSManagedRulesSQLiRuleSet** - SQL injection prevention
-- **AWSManagedRulesKnownBadInputsRuleSet** - Known attack patterns
+- AWSManagedRulesCommonRuleSet
+- AWSManagedRulesSQLiRuleSet
+- AWSManagedRulesKnownBadInputsRuleSet
 
-### Custom Rules
-- **Rate Limiting** - Prevents brute force attacks
-- **Geographic Blocking** - Optional country-based restrictions
-- **Custom SQL Injection Detection** - Specific payload blocking
-- **XSS Protection** - Script injection prevention
+### Custom Security Rules
+- Rate-based attack prevention
+- Geographic access control
+- Custom SQL injection detection
+- XSS mitigation rules
 
-### Monitoring & Alerting
-- CloudWatch metrics and dashboards
-- Real-time attack visualization
-- Automated alerting for security events
+### Security Monitoring
+- Real-time CloudWatch metrics
+- Attack pattern visualization
+- Security event alerting
 - Comprehensive logging
 
-## 📊 Lightning Talk Structure
+## Cost Considerations
 
-### 1. The Production Story (3 minutes)
-- Share your real production incident
-- Business impact and urgency
-- "I had never used WAF before..."
+### Infrastructure Components
+- EC2 instances (t3.micro): ~$0.0116/hour
+- Application Load Balancer: ~$0.0225/hour
+- WAF Web ACL: $1.00/month + $0.60 per million requests
+- CloudWatch: Minimal for demonstration usage
 
-### 2. Live Vulnerability Demo (5 minutes)
-- Show the vulnerable application
-- Execute SQL injection attacks
-- Demonstrate brute force attempts
-- Display successful XSS payloads
-
-### 3. WAF Implementation (3 minutes)
-- Deploy WAF with one command
-- Explain managed rule groups
-- Show custom rule configuration
-
-### 4. Protection in Action (5 minutes)
-- Repeat the same attacks
-- Show blocked requests in real-time
-- Display CloudWatch metrics
-- Demonstrate rate limiting
-
-### 5. Key Learnings (4 minutes)
-- What worked immediately
-- Common beginner mistakes
-- Monitoring and tuning tips
-- Cost considerations
-
-## 🎯 Key Demo Points
-
-### Before WAF
-- ❌ SQL injection succeeds
-- ❌ XSS payloads execute
-- ❌ Unlimited login attempts
-- ❌ No attack visibility
-
-### After WAF
-- ✅ SQL injection blocked
-- ✅ XSS filtered out
-- ✅ Rate limiting active
-- ✅ Real-time monitoring
-
-## 💡 Beginner Tips (From Real Experience)
-
-1. **Start Simple** - Use managed rule groups first
-2. **Test in Count Mode** - See what would be blocked before blocking
-3. **Monitor Actively** - Set up CloudWatch alarms
-4. **Document Everything** - You'll forget why you added rules
-5. **Test Regularly** - Verify protection with attack simulations
-
-## 📈 Cost Considerations
-
-### Demo Environment Costs
-- **EC2 instances**: ~$0.0116/hour (t3.micro)
-- **Application Load Balancer**: ~$0.0225/hour
-- **WAF Web ACL**: $1.00/month + $0.60 per million requests
-- **CloudWatch**: Minimal for demo usage
-
-**Total demo cost**: ~$2-5 for a few hours of demo
-
-## 🧹 Cleanup
+## Resource Cleanup
 
 ```bash
 cd scripts/
-./cleanup-demo.sh us-east-1 waf-lightning-demo
+./cleanup-demo.sh us-east-1 waf-demo
 ```
 
-This removes all AWS resources and stops billing.
+## Customization Options
 
-## 🔧 Customization
+### Application Modifications
+Edit `app/app.js` to modify vulnerabilities or endpoints.
 
-### Modify the Vulnerable App
-Edit `app/app.js` to add new vulnerabilities or change endpoints.
-
-### Adjust WAF Rules
+### WAF Rule Customization
 Modify `cloudformation/02-waf-protection.yaml` to:
-- Change rate limiting thresholds
-- Add geographic restrictions
-- Include additional managed rule groups
-- Create custom detection rules
+- Adjust rate limiting thresholds
+- Configure geographic restrictions
+- Add custom rule groups
+- Modify detection patterns
 
-### Add New Attack Simulations
-Create new scripts in the `attacks/` directory following the existing patterns.
+### Attack Simulation
+Create custom attack scripts in the `attacks/` directory.
 
-## 📚 Additional Resources
+## Additional Resources
 
 ### AWS Documentation
-- [AWS WAF Developer Guide](https://docs.aws.amazon.com/waf/)
+- [AWS WAF Documentation](https://docs.aws.amazon.com/waf/)
 - [WAF Security Automations](https://aws.amazon.com/solutions/implementations/security-automations-for-aws-waf/)
 
-### Security Testing Tools
+### Security Tools
 - [OWASP ZAP](https://owasp.org/www-project-zap/)
 - [Burp Suite](https://portswigger.net/burp)
 - [SQLMap](https://sqlmap.org/)
 
-### Learning Resources
+### Security References
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
 - [AWS Security Best Practices](https://aws.amazon.com/architecture/security-identity-compliance/)
 
-## 🤝 Contributing
-
-Found an issue or want to improve the demo? 
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
+3. Implement changes
+4. Add comprehensive tests
 5. Submit a pull request
 
-## ⚠️ Important Notes
+## Security Notice
 
-### Security Disclaimer
-This application is **intentionally vulnerable** for educational purposes. Never deploy this in a production environment or expose it to the internet without WAF protection.
+This application contains intentional vulnerabilities for demonstration purposes. Never deploy in a production environment without proper security controls.
 
-### Demo Environment
-- Use only for demonstrations and learning
-- Clean up resources after use to avoid charges
-- Don't store real data in the demo application
+## Support
 
-### Production Considerations
-- This demo simplifies many production concerns
-- Real implementations need additional security layers
-- Consider compliance requirements for your use case
-
-## 📞 Support
-
-Having issues with the demo? Check these common solutions:
-
-### Deployment Issues
+For deployment issues:
 - Verify AWS credentials and permissions
-- Ensure EC2 key pair exists in target region
-- Check CloudFormation stack events for errors
+- Check CloudFormation stack events
+- Validate EC2 key pair availability
+- Review security group configurations
 
-### Application Not Responding
-- Wait 5-10 minutes for EC2 instances to initialize
-- Check target group health in ALB console
-- Verify security group rules allow traffic
-
-### WAF Not Blocking
-- Confirm WAF is associated with ALB
-- Check rule priorities and actions
-- Verify test payloads match rule patterns
-
----
-
-## 🎉 Ready for Your Lightning Talk!
-
-This demo provides everything you need for a compelling AWS Summit presentation that combines:
-- **Real production experience** (your story)
-- **Live technical demonstration** (vulnerable app + attacks)
-- **Immediate problem solving** (WAF deployment)
-- **Measurable results** (blocked attacks + metrics)
-
-The combination of storytelling and technical demonstration makes for an engaging and memorable lightning talk that attendees can immediately apply to their own environments.
-
-**Good luck with your presentation!** 🚀
+For application issues:
+- Allow 5-10 minutes for EC2 initialization
+- Verify target group health status
+- Check security group rules
+- Review application logs

@@ -1,0 +1,58 @@
+🤖 AI/ML Enhanced Attack Simulation
+Target: http://waf-demo.tomogaku.ip-ddns.com
+==================================
+
+1. Testing AI-enhanced SQL injection patterns...
+Testing payload: ' OR '1'='1
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+Testing payload: ' UNION SELECT NULL,NULL--
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+Testing payload: ' AND 1=CONVERT(int,(SELECT @@version))--
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+Testing payload: ' AND 1=db_name()--
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+Testing payload: '; EXEC xp_cmdshell('net user')--
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+
+2. Testing ML-based XSS patterns...
+Testing payload: <script>alert(document.cookie)</script>
+Testing payload: <img src=x onerror=alert('XSS')>
+Testing payload: <svg/onload=alert('XSS')>
+Testing payload: javascript:alert('XSS')
+Testing payload: <body onload=alert('XSS')>
+
+3. Testing adaptive brute force patterns...
+Testing credential: admin:admin123
+Testing credential: admin:password123
+Testing credential: admin:qwerty
+Testing credential: admin:letmein
+Testing credential: admin:welcome1
+
+==================================
+AI/ML Enhanced tests completed!
+Check the WAF dashboard for detection patterns and blocked requests.

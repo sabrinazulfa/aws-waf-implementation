@@ -1,22 +1,4 @@
-# AWS WAF AI/ML Enhanced Lightning Talk Demo
-
-> **"How AI and Machine Learning in AWS WAF Enhance Attack Detection and Response in Real-Time"**
-
-An advanced demo environment showcasing AWS WAF's AI/ML capabilities for intelligent threat detection and automated response, featuring sophisticated attack simulations and machine learning-powered protection.
-
-## 🎯 Enhanced Talk Overview
-
-This enhanced version demonstrates:
-- **AI-powered Bot Detection** with AWS WAF Bot Control
-- **Machine Learning-based Fraud Prevention** 
-- **Intelligent Rate Limiting** with adaptive thresholds
-- **Real-time Threat Intelligence** integration
-- **Automated Response** with Lambda functions
-- **Advanced Analytics** with ML insights
-
-**Perfect for:** Security architects, ML engineers, and teams implementing intelligent security solutions.
-
-## 🧠 AI/ML Features Demonstrated
+## AI/ML Features Demonstrated
 
 ### 1. AWS WAF Bot Control (AI-Powered)
 - **Machine Learning Bot Detection** - Identifies sophisticated bots
@@ -105,74 +87,8 @@ cd attacks/
 ### 4. Test Advanced AI/ML Protection
 ```bash
 ./run-ai-ml-attacks.sh http://your-enhanced-alb-dns-name ai-ml-enabled
-# Watch AI/ML block sophisticated attacks! 🤖🛡️
+# Watch AI/ML block sophisticated attacks!
 ```
-
-## 🤖 AI/ML Demo Scenarios
-
-### Scenario 1: Sophisticated Bot Detection
-```bash
-# Traditional bot (easily detected)
-curl -H "User-Agent: bot/1.0" http://demo-app/api/products
-
-# Sophisticated bot (mimics human behavior)
-node bot-simulator.js --target http://demo-app --behavior human-like
-```
-
-### Scenario 2: Account Takeover Prevention
-```bash
-# Credential stuffing attack
-./account-takeover-test.sh --target http://demo-app/login --credentials leaked-passwords.txt
-
-# ML detects unusual login patterns and triggers challenges
-```
-
-### Scenario 3: Fraud Detection
-```bash
-# Suspicious payment patterns
-./fraud-transaction-test.sh --target http://demo-app/payment --pattern suspicious
-
-# ML models identify fraud indicators in real-time
-```
-
-### Scenario 4: Adaptive Rate Limiting
-```bash
-# Traditional rate limiting bypass
-./adaptive-attack-test.sh --target http://demo-app --strategy distributed
-
-# AI adjusts thresholds based on attack patterns
-```
-
-## 📊 Enhanced Lightning Talk Structure
-
-### 1. The AI/ML Security Challenge (3 minutes)
-- Modern attacks are AI-powered too
-- Traditional rules can't keep up
-- Need intelligent, adaptive protection
-
-### 2. Sophisticated Attack Demo (5 minutes)
-- Show advanced bot behavior
-- Demonstrate credential stuffing
-- Execute fraud transaction attempts
-- Display ML evasion techniques
-
-### 3. AI/ML WAF Implementation (4 minutes)
-- Deploy Bot Control with ML
-- Configure Fraud Control integration
-- Show adaptive rate limiting setup
-- Explain real-time learning
-
-### 4. AI Protection in Action (6 minutes)
-- Repeat sophisticated attacks
-- Show ML-based detection
-- Display adaptive responses
-- Demonstrate learning improvements
-
-### 5. ML Analytics & Insights (2 minutes)
-- Real-time traffic analysis
-- Predictive threat detection
-- Automated rule optimization
-- ROI of AI/ML security
 
 ## 🧠 Key AI/ML Features Demonstrated
 
@@ -209,16 +125,7 @@ node bot-simulator.js --target http://demo-app --behavior human-like
 
 **Total enhanced demo cost**: ~$10-15 for a few hours of comprehensive demo
 
-## 🔬 ML Analytics Dashboard
-
-The enhanced demo includes:
-- **Real-time ML model performance**
-- **Bot detection confidence scores**
-- **Fraud risk assessments**
-- **Adaptive threshold visualizations**
-- **Learning curve analytics**
-
-## 🎯 Production AI/ML Considerations
+## Production AI/ML Considerations
 
 ### Model Training
 - Requires 2-4 weeks of traffic data
@@ -234,15 +141,3 @@ The enhanced demo includes:
 - ML processing adds ~10-50ms latency
 - Scales automatically with traffic
 - Cost increases with sophistication
-
----
-
-## 🚀 Ready for Your AI/ML Lightning Talk!
-
-This enhanced demo showcases cutting-edge AWS WAF AI/ML capabilities that demonstrate:
-- **Intelligent threat detection** beyond traditional rules
-- **Real-time machine learning** adaptation
-- **Automated response** to emerging threats
-- **Measurable AI/ML security ROI**
-
-Perfect for audiences interested in the future of intelligent security! 🤖🛡️

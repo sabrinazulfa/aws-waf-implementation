@@ -5,7 +5,7 @@ Parameters:
   LoadBalancerArn:
     Type: String
     Description: ARN of the Application Load Balancer to protect
-    Default: !ImportValue vulnerable-app-stack-ALB-ARN
+    Default: "arn:aws:elasticloadbalancing:ap-southeast-3:533267204975:loadbalancer/app/WAF-Demo-ALB/e6a944eba52a1343"
 
   RateLimitPerMinute:
     Type: Number
@@ -23,16 +23,9 @@ Parameters:
   BlockedCountries:
     Type: CommaDelimitedList
     Description: List of country codes to block (e.g., CN,RU,KP)
-    Default: "CN,RU"
+    Default: "CN,RU,KP"
 
 Resources:
-  # CloudWatch Log Group for WAF
-  WAFLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/wafv2/${AWS::StackName}"
-      RetentionInDays: 7
-
   # WAF Web ACL
   WebACL:
     Type: AWS::WAFv2::WebACL
@@ -42,7 +35,7 @@ Resources:
       Scope: REGIONAL
       DefaultAction:
         Allow: {}
-      
+
       Rules:
         # Rule 1: AWS Managed Rules - Core Rule Set (OWASP Top 10)
         - Name: AWSManagedRulesCommonRuleSet
@@ -53,13 +46,12 @@ Resources:
             ManagedRuleGroupStatement:
               VendorName: AWS
               Name: AWSManagedRulesCommonRuleSet
-              # Exclude rules that might be too aggressive for demo
               ExcludedRules:
                 - Name: SizeRestrictions_BODY
                 - Name: GenericRFI_BODY
           VisibilityConfig:
             SampledRequestsEnabled: true
-            CloudWatchMetricsEnabled: true
+            CloudWatchMetricsEnabled: false
             MetricName: CommonRuleSetMetric
 
         # Rule 2: AWS Managed Rules - Known Bad Inputs
@@ -73,7 +65,7 @@ Resources:
               Name: AWSManagedRulesKnownBadInputsRuleSet
           VisibilityConfig:
             SampledRequestsEnabled: true
-            CloudWatchMetricsEnabled: true
+            CloudWatchMetricsEnabled: false
             MetricName: KnownBadInputsMetric
 
         # Rule 3: AWS Managed Rules - SQL Injection
@@ -87,7 +79,7 @@ Resources:
               Name: AWSManagedRulesSQLiRuleSet
           VisibilityConfig:
             SampledRequestsEnabled: true
-            CloudWatchMetricsEnabled: true
+            CloudWatchMetricsEnabled: false
             MetricName: SQLiRuleSetMetric
 
         # Rule 4: Rate Limiting
@@ -101,7 +93,7 @@ Resources:
               AggregateKeyType: IP
           VisibilityConfig:
             SampledRequestsEnabled: true
-            CloudWatchMetricsEnabled: true
+            CloudWatchMetricsEnabled: false
             MetricName: RateLimitMetric
 
         # Rule 5: Geographic Blocking (conditional)
@@ -116,7 +108,7 @@ Resources:
                 CountryCodes: !Ref BlockedCountries
             VisibilityConfig:
               SampledRequestsEnabled: true
-              CloudWatchMetricsEnabled: true
+              CloudWatchMetricsEnabled: false
               MetricName: GeoBlockingMetric
           - !Ref AWS::NoValue
 
@@ -158,7 +150,7 @@ Resources:
                     PositionalConstraint: CONTAINS
           VisibilityConfig:
             SampledRequestsEnabled: true
-            CloudWatchMetricsEnabled: true
+            CloudWatchMetricsEnabled: false
             MetricName: CustomSQLInjectionMetric
 
         # Rule 7: XSS Protection
@@ -191,12 +183,12 @@ Resources:
                     PositionalConstraint: CONTAINS
           VisibilityConfig:
             SampledRequestsEnabled: true
-            CloudWatchMetricsEnabled: true
+            CloudWatchMetricsEnabled: false
             MetricName: CustomXSSMetric
 
       VisibilityConfig:
         SampledRequestsEnabled: true
-        CloudWatchMetricsEnabled: true
+        CloudWatchMetricsEnabled: false
         MetricName: !Sub "${AWS::StackName}-WebACL"
 
       Tags:
@@ -211,22 +203,6 @@ Resources:
     Properties:
       ResourceArn: !Ref LoadBalancerArn
       WebACLArn: !GetAtt WebACL.Arn
-
-  # WAF Logging Configuration
-  WAFLoggingConfig:
-    Type: AWS::WAFv2::LoggingConfiguration
-    Properties:
-      ResourceArn: !GetAtt WebACL.Arn
-      LogDestinationConfigs:
-        - !GetAtt WAFLogGroup.Arn
-      LoggingFilter:
-        DefaultBehavior: KEEP
-        Filters:
-          - Behavior: KEEP
-            Conditions:
-              - ActionCondition:
-                  Action: BLOCK
-            Requirement: MEETS_ANY
 
   # CloudWatch Alarms
   SQLInjectionAlarm:
@@ -270,50 +246,68 @@ Resources:
           Value: !Ref AWS::Region
 
   # CloudWatch Dashboard
-  WAFDashboard:
-    Type: AWS::CloudWatch::Dashboard
-    Properties:
-      DashboardName: !Sub "${AWS::StackName}-WAF-Dashboard"
-      DashboardBody: !Sub |
-        {
-          "widgets": [
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 0,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [ "AWS/WAFV2", "AllowedRequests", "WebACL", "${AWS::StackName}-WebACL", "Region", "${AWS::Region}" ],
-                  [ ".", "BlockedRequests", ".", ".", ".", "." ]
-                ],
-                "period": 300,
-                "stat": "Sum",
-                "region": "${AWS::Region}",
-                "title": "WAF Requests Overview"
-              }
-            },
-            {
-              "type": "metric",
-              "x": 12,
-              "y": 0,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [ "AWS/WAFV2", "BlockedRequests", "WebACL", "${AWS::StackName}-WebACL", "Rule", "CustomSQLInjectionRule", "Region", "${AWS::Region}" ],
-                  [ "...", "RateLimitRule", ".", "." ],
-                  [ "...", "CustomXSSRule", ".", "." ]
-                ],
-                "period": 300,
-                "stat": "Sum",
-                "region": "${AWS::Region}",
-                "title": "Blocked Requests by Rule"
-              }
-            }
-          ]
-        }
+  # WAFDashboard:
+  #   Type: AWS::CloudWatch::Dashboard
+  #   Properties:
+  #     DashboardName: !Sub "${AWS::StackName}-WAF-Dashboard"
+  #     DashboardBody: !Sub |
+  #       {
+  #         "widgets": [
+  #           {
+  #             "type": "metric",
+  #             "x": 0,
+  #             "y": 0,
+  #             "width": 12,
+  #             "height": 6,
+  #             "properties": {
+  #               "metrics": [
+  #                 [ "AWS/WAFV2", "AllowedRequests", "WebACL", "${AWS::StackName}-WebACL", "Region", "${AWS::Region}" ],
+  #                 [ ".", "BlockedRequests", ".", ".", ".", "." ]
+  #               ],
+  #               "period": 300,
+  #               "stat": "Sum",
+  #               "region": "${AWS::Region}",
+  #               "title": "WAF Requests Overview"
+  #             }
+  #           },
+  #           {
+  #             "type": "metric",
+  #             "x": 12,
+  #             "y": 0,
+  #             "width": 12,
+  #             "height": 6,
+  #             "properties": {
+  #               "metrics": [
+  #                 [ "AWS/WAFV2", "BlockedRequests", "WebACL", "${AWS::StackName}-WebACL", "Rule", "CustomSQLInjectionRule", "Region", "${AWS::Region}" ],
+  #                 [ "...", "RateLimitRule", ".", "." ],
+  #                 [ "...", "CustomXSSRule", ".", "." ]
+  #               ],
+  #               "period": 300,
+  #               "stat": "Sum",
+  #               "region": "${AWS::Region}",
+  #               "title": "Blocked Requests by Rule"
+  #             }
+  #           }
+  #         ]
+  #       }
+  #   # CloudWatch Log Group untuk WAF Logs
+  # WAFLogGroup:
+  #   Type: AWS::Logs::LogGroup
+  #   Properties:
+  #     LogGroupName: aws-waf-logs
+  #     RetentionInDays: 14
+
+  # Logging configuration untuk WAF WebACL
+  # WAFLoggingConfiguration:
+  #   Type: AWS::WAFv2::LoggingConfiguration
+  #   Properties:
+  #     ResourceArn: !GetAtt WebACL.Arn
+  #     LogDestinationConfigs:
+  #       - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:aws-waf-logs"
+  #     LoggingFilter:
+  #       DefaultBehavior: KEEP
+  #       Filters: []
+
 
 Conditions:
   EnableGeoBlockingCondition: !Equals [!Ref EnableGeoBlocking, 'true']
@@ -343,12 +337,12 @@ Outputs:
     Description: Commands to test WAF protection
     Value: |
       # These should now be blocked by WAF:
-      
+
       # SQL Injection test:
       curl "http://your-alb-dns/search?q='; DROP TABLE users; --"
-      
+
       # XSS test:
       curl "http://your-alb-dns/search?q=<script>alert('xss')</script>"
-      
+
       # Rate limiting test:
       for i in {1..150}; do curl http://your-alb-dns/login -d "user=test&pass=$i"; done

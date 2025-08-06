@@ -44,13 +44,22 @@ echo "✅ Key pair '$KEY_PAIR' found"
 wait_for_stack() {
     local stack_name="$1"
     local operation="$2"
-    
+
     echo "⏳ Waiting for stack $operation to complete: $stack_name"
-    
-    aws cloudformation wait "stack-${operation}-complete" \
-        --stack-name "$stack_name" \
-        --region "$REGION"
-    
+
+    if [ "${operation}" = "create-or-update" ]; then
+        aws cloudformation wait "stack-create-complete" \
+            --stack-name "$stack_name" \
+            --region "$REGION" || \
+        aws cloudformation wait "stack-update-complete" \
+            --stack-name "$stack_name" \
+            --region "$REGION"
+    else
+        aws cloudformation wait "stack-${operation}-complete" \
+            --stack-name "$stack_name" \
+            --region "$REGION"
+    fi
+
     if [ $? -eq 0 ]; then
         echo "✅ Stack $operation completed: $stack_name"
     else
@@ -67,7 +76,7 @@ wait_for_stack() {
 # Deploy the vulnerable application stack
 echo -e "\n📦 Deploying vulnerable application infrastructure..."
 aws cloudformation deploy \
-    --template-file ../cloudformation/01-vulnerable-app.yaml \
+    --template-file "$(dirname "$(pwd)")/cloudformation/01-vulnerable-app-ubuntu-fixed.yaml" \
     --stack-name "${STACK_PREFIX}-app" \
     --parameter-overrides KeyPairName="$KEY_PAIR" \
     --capabilities CAPABILITY_IAM \
@@ -118,7 +127,7 @@ for i in {1..10}; do
         echo "⏳ Waiting for application to be ready... (attempt $i/10)"
         sleep 30
     fi
-    
+
     if [ $i -eq 10 ]; then
         echo "❌ Application is not responding after 5 minutes"
         echo "Check the EC2 instances and target group health"
@@ -135,9 +144,9 @@ read -r deploy_waf
 
 if [[ $deploy_waf =~ ^[Yy]$ ]]; then
     echo -e "\n🛡️  Deploying WAF protection..."
-    
+
     aws cloudformation deploy \
-        --template-file ../cloudformation/02-waf-protection.yaml \
+        --template-file "$(dirname "$(pwd)")/cloudformation/02-waf-protection.yaml" \
         --stack-name "${STACK_PREFIX}-waf" \
         --parameter-overrides LoadBalancerArn="$ALB_ARN" \
         --region "$REGION" \
@@ -145,34 +154,34 @@ if [[ $deploy_waf =~ ^[Yy]$ ]]; then
             Purpose="Lightning Talk Demo" \
             Environment="Demo" \
             Owner="$(aws sts get-caller-identity --query 'Arn' --output text)"
-    
+
     wait_for_stack "${STACK_PREFIX}-waf" "create-or-update"
-    
+
     # Get WAF Web ACL ID
     WAF_ACL_ID=$(aws cloudformation describe-stacks \
         --stack-name "${STACK_PREFIX}-waf" \
         --region "$REGION" \
         --query 'Stacks[0].Outputs[?OutputKey==`WebACLId`].OutputValue' \
         --output text)
-    
+
     echo "✅ WAF Web ACL ID: $WAF_ACL_ID"
-    
+
     # Get dashboard URL
     DASHBOARD_URL=$(aws cloudformation describe-stacks \
         --stack-name "${STACK_PREFIX}-waf" \
         --region "$REGION" \
         --query 'Stacks[0].Outputs[?OutputKey==`DashboardURL`].OutputValue' \
         --output text)
-    
+
     echo "✅ CloudWatch Dashboard: $DASHBOARD_URL"
-    
+
     # Get WAF console URL
     WAF_CONSOLE_URL=$(aws cloudformation describe-stacks \
         --stack-name "${STACK_PREFIX}-waf" \
         --region "$REGION" \
         --query 'Stacks[0].Outputs[?OutputKey==`WAFConsoleURL`].OutputValue' \
         --output text)
-    
+
     echo "✅ WAF Console: $WAF_CONSOLE_URL"
 else
     echo "⏭️  Skipping WAF deployment. You can deploy it later using:"

@@ -116,7 +116,8 @@ if [ -f "../demo-info.txt" ]; then
     echo "✅ Removed demo-info.txt"
 fi
 
-if [ -d "../attacks/attack-results-"* ]; then
+attack_results=$(find ../attacks -name "attack-results-*" -type d 2>/dev/null || true)
+if [ -n "$attack_results" ]; then
     rm -rf ../attacks/attack-results-*
     echo "✅ Removed attack result directories"
 fi
