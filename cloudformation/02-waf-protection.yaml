@@ -5,7 +5,7 @@ Parameters:
   LoadBalancerArn:
     Type: String
     Description: ARN of the Application Load Balancer to protect
-    Default: "arn:aws:elasticloadbalancing:ap-southeast-3:533267204975:loadbalancer/app/WAF-Demo-ALB/e6a944eba52a1343"
+    Default: ""
 
   RateLimitPerMinute:
     Type: Number
